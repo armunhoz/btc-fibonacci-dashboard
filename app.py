@@ -1,34 +1,27 @@
 import streamlit as st
 import pandas as pd
-import requests
-import time
+import yfinance as yf
 import numpy as np
 import plotly.graph_objects as go
 
-# Função para obter dados do BTC na Binance
+# Função para obter dados do BTC via Yahoo Finance
 @st.cache_data(ttl=600)  # Cache válido por 10 minutos
-def get_binance_data(symbol="BTCUSDT", interval="1h", limit=500):
-    url = f"https://api.binance.com/api/v3/klines?symbol={symbol}&interval={interval}&limit={limit}"
-    
+def get_yahoo_data(symbol="BTC-USD", interval="1h", period="30d"):
     try:
-        response = requests.get(url)
-        response.raise_for_status()
-        data = response.json()
-        
-        df = pd.DataFrame(data, columns=["timestamp", "open", "high", "low", "close", "volume", "_", "_", "_", "_", "_", "_"])
-        df["timestamp"] = pd.to_datetime(df["timestamp"], unit="ms")
-        df["open"] = df["open"].astype(float)
-        df["high"] = df["high"].astype(float)
-        df["low"] = df["low"].astype(float)
-        df["close"] = df["close"].astype(float)
+        df = yf.download(symbol, interval=interval, period=period)
+        df.reset_index(inplace=True)
+        df.rename(columns={"Date": "timestamp", "Open": "open", "High": "high", "Low": "low", "Close": "close", "Volume": "volume"}, inplace=True)
         return df
-    
-    except requests.exceptions.RequestException as e:
-        st.error(f"Erro ao conectar com a API da Binance: {e}")
+    except Exception as e:
+        st.error(f"Erro ao conectar com a API do Yahoo Finance: {e}")
         return pd.DataFrame()
 
 # Função de IA para gerar sinais de compra/venda
 def generate_trading_signals(df):
+    if "close" not in df.columns:
+        st.error("Erro: Dados não carregados corretamente. Verifique a fonte de dados.")
+        return df
+    
     df["sma_50"] = df["close"].rolling(window=50).mean()
     df["sma_200"] = df["close"].rolling(window=200).mean()
     
@@ -41,14 +34,14 @@ def generate_trading_signals(df):
 st.title("📈 Análise de Fibonacci e IA para BTC/USD")
 
 # Opções de tempo gráfico
-timeframe = st.selectbox("Escolha o período do gráfico:", ["1m", "5m", "15m", "1h", "4h", "1d"], index=3)
+timeframe = st.selectbox("Escolha o período do gráfico:", ["1h", "4h", "1d", "1wk"], index=0)
 
-# Obter dados da Binance
-df = get_binance_data(interval=timeframe)
+# Obter dados do Yahoo Finance
+df = get_yahoo_data(interval=timeframe)
 df = generate_trading_signals(df)
 
 if df.empty:
-    st.error("Erro ao carregar os dados. Verifique se a API da Binance está disponível.")
+    st.error("Erro ao carregar os dados. Verifique se a API do Yahoo Finance está disponível.")
 else:
     st.write("### 📊 Dados Processados com IA", df.tail())
     
