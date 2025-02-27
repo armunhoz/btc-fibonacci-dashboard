@@ -6,15 +6,28 @@ import plotly.graph_objects as go
 # Função para obter dados do BTC na Binance
 def get_binance_data(symbol="BTCUSDT", interval="1d", limit=100):
     url = f"https://api.binance.com/api/v3/klines?symbol={symbol}&interval={interval}&limit={limit}"
-    data = requests.get(url).json()
-    df = pd.DataFrame(data, columns=["timestamp", "open", "high", "low", "close", "volume", "_", "_", "_", "_", "_", "_"])
     
-    # Corrigir timestamp correto
-    df["timestamp"] = pd.to_datetime(df["timestamp"], unit="ms")
-    df["close"] = df["close"].astype(float)
-    df["high"] = df["high"].astype(float)
-    df["low"] = df["low"].astype(float)
-    return df
+    try:
+        response = requests.get(url)
+        response.raise_for_status()  # Verifica se houve erro na requisição
+        data = response.json()
+        
+        if not isinstance(data, list):  # Se a resposta não for uma lista, há erro
+            st.error(f"Erro na resposta da Binance: {data}")
+            return pd.DataFrame()
+        
+        df = pd.DataFrame(data, columns=["timestamp", "open", "high", "low", "close", "volume", "_", "_", "_", "_", "_", "_"])
+        
+        # Corrigir timestamp correto
+        df["timestamp"] = pd.to_datetime(df["timestamp"], unit="ms")
+        df["close"] = df["close"].astype(float)
+        df["high"] = df["high"].astype(float)
+        df["low"] = df["low"].astype(float)
+        return df
+    
+    except requests.exceptions.RequestException as e:
+        st.error(f"Erro ao conectar com a API da Binance: {e}")
+        return pd.DataFrame()
 
 # Função para calcular níveis de Fibonacci
 def fibonacci_retracement(df):
