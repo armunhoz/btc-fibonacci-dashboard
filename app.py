@@ -12,12 +12,16 @@ def get_coingecko_data():
         response.raise_for_status()
         data = response.json()
         
-        if "prices" not in data:
+        if "prices" not in data or "market_caps" not in data or "total_volumes" not in data:
             st.error(f"Erro na resposta da CoinGecko: {data}")
             return pd.DataFrame()
         
         df = pd.DataFrame(data["prices"], columns=["timestamp", "close"])
         df["timestamp"] = pd.to_datetime(df["timestamp"], unit="ms")
+        df["open"] = df["close"].shift(1)
+        df["high"] = df["close"].rolling(2).max()
+        df["low"] = df["close"].rolling(2).min()
+        df.dropna(inplace=True)
         return df
     
     except requests.exceptions.RequestException as e:
@@ -26,8 +30,8 @@ def get_coingecko_data():
 
 # Função para calcular níveis de Fibonacci
 def fibonacci_retracement(df):
-    max_price = df["close"].max()
-    min_price = df["close"].min()
+    max_price = df["high"].max()
+    min_price = df["low"].min()
     
     fib_levels = [0.236, 0.382, 0.5, 0.618, 0.786]
     retracement_levels = [(max_price - (max_price - min_price) * level) for level in fib_levels]
@@ -48,7 +52,16 @@ else:
 
     # Criar gráfico com Plotly
     fig = go.Figure()
-    fig.add_trace(go.Scatter(x=df["timestamp"], y=df["close"], mode='lines', name='Preço BTC'))
+    fig.add_trace(go.Candlestick(
+        x=df["timestamp"],
+        open=df["open"],
+        high=df["high"],
+        low=df["low"],
+        close=df["close"],
+        increasing_line_color='green',
+        decreasing_line_color='red',
+        name='Candlestick BTC'
+    ))
 
     # Adicionar linhas de Fibonacci
     colors = ['red', 'orange', 'yellow', 'green', 'blue']
