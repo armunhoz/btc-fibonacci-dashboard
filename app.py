@@ -21,7 +21,7 @@ def fibonacci_retracement(df):
     fib_levels = [0.236, 0.382, 0.5, 0.618, 0.786]
     retracement_levels = [(max_price - (max_price - min_price) * level) for level in fib_levels]
     
-    return retracement_levels, max_price, min_price
+    return retracement_levels, max_price, min_price, fib_levels
 
 # Interface do Streamlit
 st.title("📈 Análise de Fibonacci para BTC/USDT")
@@ -31,7 +31,7 @@ interval = st.selectbox("Selecione o intervalo:", ["1m", "5m", "15m", "1h", "4h"
 
 # Obter dados e calcular Fibonacci
 df = get_binance_data(interval=interval)
-retracements, max_price, min_price = fibonacci_retracement(df)
+retracements, max_price, min_price, fib_levels = fibonacci_retracement(df)
 
 # Criar gráfico com Plotly
 fig = go.Figure()
@@ -41,7 +41,7 @@ fig.add_trace(go.Scatter(y=df["close"], mode='lines', name='Preço BTC'))
 colors = ['red', 'orange', 'yellow', 'green', 'blue']
 for i, level in enumerate(retracements):
     fig.add_shape(type='line', x0=0, x1=len(df), y0=level, y1=level, line=dict(color=colors[i], dash='dash'))
-    fig.add_annotation(x=len(df)//2, y=level, text=f'Fib {fib_levels[i]*100:.1f}%', showarrow=False, bgcolor=colors[i])
+    fig.add_annotation(x=len(df)//2, y=level, text=f'Fib {fib_levels[i] * 100:.1f}%', showarrow=False, bgcolor=colors[i])
 
 fig.update_layout(title=f"Fibonacci Retracements ({interval})", xaxis_title="Tempo", yaxis_title="Preço (USDT)", template="plotly_dark")
 
