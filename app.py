@@ -2,31 +2,37 @@ import streamlit as st
 import pandas as pd
 import requests
 import plotly.graph_objects as go
+import time
 
-# Função para obter dados do BTC na CoinGecko
+# Função para obter dados do BTC na CoinGecko com cache para evitar bloqueios
+@st.cache_data(ttl=600)  # Cache válido por 10 minutos
 def get_coingecko_data():
     url = "https://api.coingecko.com/api/v3/coins/bitcoin/market_chart?vs_currency=usd&days=30&interval=daily"
     
-    try:
-        response = requests.get(url)
-        response.raise_for_status()
-        data = response.json()
+    for _ in range(3):  # Tentar até 3 vezes caso a API falhe
+        try:
+            response = requests.get(url)
+            response.raise_for_status()
+            data = response.json()
+            
+            if "prices" not in data:
+                st.error(f"Erro na resposta da CoinGecko: {data}")
+                return pd.DataFrame()
+            
+            df = pd.DataFrame(data["prices"], columns=["timestamp", "close"])
+            df["timestamp"] = pd.to_datetime(df["timestamp"], unit="ms")
+            df["open"] = df["close"].shift(1)
+            df["high"] = df["close"].rolling(2).max()
+            df["low"] = df["close"].rolling(2).min()
+            df.dropna(inplace=True)
+            return df
         
-        if "prices" not in data or "market_caps" not in data or "total_volumes" not in data:
-            st.error(f"Erro na resposta da CoinGecko: {data}")
-            return pd.DataFrame()
-        
-        df = pd.DataFrame(data["prices"], columns=["timestamp", "close"])
-        df["timestamp"] = pd.to_datetime(df["timestamp"], unit="ms")
-        df["open"] = df["close"].shift(1)
-        df["high"] = df["close"].rolling(2).max()
-        df["low"] = df["close"].rolling(2).min()
-        df.dropna(inplace=True)
-        return df
+        except requests.exceptions.RequestException as e:
+            st.warning(f"Tentativa falhou: {e}. Aguardando 5 segundos...")
+            time.sleep(5)  # Aguarda 5 segundos antes de tentar novamente
     
-    except requests.exceptions.RequestException as e:
-        st.error(f"Erro ao conectar com a API da CoinGecko: {e}")
-        return pd.DataFrame()
+    st.error("Erro ao conectar com a API da CoinGecko após múltiplas tentativas.")
+    return pd.DataFrame()
 
 # Função para calcular níveis de Fibonacci
 def fibonacci_retracement(df):
