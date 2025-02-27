@@ -10,7 +10,7 @@ def get_binance_data(symbol="BTCUSDT", interval="1d", limit=100):
     df = pd.DataFrame(data, columns=["timestamp", "open", "high", "low", "close", "volume", "_", "_", "_", "_", "_", "_"])
     
     # Corrigir timestamp correto
-    df["timestamp"] = pd.to_datetime(df[0], unit="ms")
+    df["timestamp"] = pd.to_datetime(df["timestamp"], unit="ms")
     df["close"] = df["close"].astype(float)
     df["high"] = df["high"].astype(float)
     df["low"] = df["low"].astype(float)
