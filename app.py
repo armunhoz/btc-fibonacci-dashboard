@@ -1,11 +1,14 @@
-import os
-os.system("pip install yfinance")
-
 import streamlit as st
 import pandas as pd
-import yfinance as yf
 import numpy as np
 import plotly.graph_objects as go
+
+# Verificar se o yfinance está instalado
+try:
+    import yfinance as yf
+except ModuleNotFoundError:
+    st.error("Erro: O pacote 'yfinance' não está instalado. Para rodar localmente, instale com: pip install yfinance")
+    st.stop()
 
 # Função para obter dados do BTC via Yahoo Finance
 @st.cache_data(ttl=600)  # Cache válido por 10 minutos
@@ -89,3 +92,4 @@ else:
     
     # Mostrar gráfico
     st.plotly_chart(fig)
+
