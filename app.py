@@ -8,6 +8,7 @@ def get_binance_data(symbol="BTCUSDT", interval="1d", limit=100):
     url = f"https://api.binance.com/api/v3/klines?symbol={symbol}&interval={interval}&limit={limit}"
     data = requests.get(url).json()
     df = pd.DataFrame(data, columns=["timestamp", "open", "high", "low", "close", "volume", "_", "_", "_", "_", "_", "_"])
+    df["timestamp"] = pd.to_datetime(df["timestamp",], unit="ms")
     df["close"] = df["close"].astype(float)
     df["high"] = df["high"].astype(float)
     df["low"] = df["low"].astype(float)
@@ -31,17 +32,18 @@ interval = st.selectbox("Selecione o intervalo:", ["1m", "5m", "15m", "1h", "4h"
 
 # Obter dados e calcular Fibonacci
 df = get_binance_data(interval=interval)
+st.write("### Dados Recebidos da Binance", df.head())  # Debug: Mostra os primeiros dados retornados
 retracements, max_price, min_price, fib_levels = fibonacci_retracement(df)
 
 # Criar gráfico com Plotly
 fig = go.Figure()
-fig.add_trace(go.Scatter(y=df["close"], mode='lines', name='Preço BTC'))
+fig.add_trace(go.Scatter(x=df["timestamp"], y=df["close"], mode='lines', name='Preço BTC'))
 
 # Adicionar linhas de Fibonacci
 colors = ['red', 'orange', 'yellow', 'green', 'blue']
 for i, level in enumerate(retracements):
-    fig.add_shape(type='line', x0=0, x1=len(df), y0=level, y1=level, line=dict(color=colors[i], dash='dash'))
-    fig.add_annotation(x=len(df)//2, y=level, text=f'Fib {fib_levels[i] * 100:.1f}%', showarrow=False, bgcolor=colors[i])
+    fig.add_shape(type='line', x0=df["timestamp"].iloc[0], x1=df["timestamp"].iloc[-1], y0=level, y1=level, line=dict(color=colors[i], dash='dash'))
+    fig.add_annotation(x=df["timestamp"].iloc[len(df)//2], y=level, text=f'Fib {fib_levels[i] * 100:.1f}%', showarrow=False, bgcolor=colors[i])
 
 fig.update_layout(title=f"Fibonacci Retracements ({interval})", xaxis_title="Tempo", yaxis_title="Preço (USDT)", template="plotly_dark")
 
