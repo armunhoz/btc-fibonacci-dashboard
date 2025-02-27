@@ -5,37 +5,27 @@ import time
 import numpy as np
 import plotly.graph_objects as go
 
-# Função para obter dados do BTC na CoinGecko com cache otimizado
+# Função para obter dados do BTC na Binance
 @st.cache_data(ttl=600)  # Cache válido por 10 minutos
-def get_coingecko_data(days=30, interval='hourly'):
-    url = f"https://api.coingecko.com/api/v3/coins/bitcoin/market_chart?vs_currency=usd&days={days}&interval={interval}"
-    wait_time = 5  # Tempo inicial de espera
+def get_binance_data(symbol="BTCUSDT", interval="1h", limit=500):
+    url = f"https://api.binance.com/api/v3/klines?symbol={symbol}&interval={interval}&limit={limit}"
     
-    for _ in range(5):  # Tentar até 5 vezes caso a API falhe
-        try:
-            response = requests.get(url)
-            response.raise_for_status()
-            data = response.json()
-            
-            if "prices" not in data:
-                st.error(f"Erro na resposta da CoinGecko: {data}")
-                return pd.DataFrame()
-            
-            df = pd.DataFrame(data["prices"], columns=["timestamp", "close"])
-            df["timestamp"] = pd.to_datetime(df["timestamp"], unit="ms")
-            df["open"] = df["close"].shift(1)
-            df["high"] = df["close"].rolling(2).max()
-            df["low"] = df["close"].rolling(2).min()
-            df.dropna(inplace=True)
-            return df
+    try:
+        response = requests.get(url)
+        response.raise_for_status()
+        data = response.json()
         
-        except requests.exceptions.RequestException as e:
-            st.warning(f"Tentativa falhou: {e}. Aguardando {wait_time} segundos...")
-            time.sleep(wait_time)  # Aguardar antes de tentar novamente
-            wait_time *= 2  # Aumentar o tempo de espera exponencialmente
+        df = pd.DataFrame(data, columns=["timestamp", "open", "high", "low", "close", "volume", "_", "_", "_", "_", "_", "_"])
+        df["timestamp"] = pd.to_datetime(df["timestamp"], unit="ms")
+        df["open"] = df["open"].astype(float)
+        df["high"] = df["high"].astype(float)
+        df["low"] = df["low"].astype(float)
+        df["close"] = df["close"].astype(float)
+        return df
     
-    st.error("Erro ao conectar com a API da CoinGecko após múltiplas tentativas.")
-    return pd.DataFrame()
+    except requests.exceptions.RequestException as e:
+        st.error(f"Erro ao conectar com a API da Binance: {e}")
+        return pd.DataFrame()
 
 # Função de IA para gerar sinais de compra/venda
 def generate_trading_signals(df):
@@ -51,14 +41,14 @@ def generate_trading_signals(df):
 st.title("📈 Análise de Fibonacci e IA para BTC/USD")
 
 # Opções de tempo gráfico
-timeframe = st.selectbox("Escolha o período do gráfico:", ["1", "5", "15", "60", "240", "1D", "1W", "1M"], index=5)
+timeframe = st.selectbox("Escolha o período do gráfico:", ["1m", "5m", "15m", "1h", "4h", "1d"], index=3)
 
-# Obter dados e gerar sinais
-df = get_coingecko_data(days=30, interval="hourly")
+# Obter dados da Binance
+df = get_binance_data(interval=timeframe)
 df = generate_trading_signals(df)
 
 if df.empty:
-    st.error("Erro ao carregar os dados. Verifique se a API da CoinGecko está disponível.")
+    st.error("Erro ao carregar os dados. Verifique se a API da Binance está disponível.")
 else:
     st.write("### 📊 Dados Processados com IA", df.tail())
     
